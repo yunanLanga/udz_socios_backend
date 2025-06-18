@@ -27,4 +27,9 @@ class socio extends Model
        'valor_quota_contribuido',
        'estado_socio'
     ];
+
+    public function qoutas()
+    {
+        return $this->hasMany(Qoutas::class, 'id_socio', 'id');
+    }
 }

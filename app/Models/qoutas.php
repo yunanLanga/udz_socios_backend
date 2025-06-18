@@ -15,6 +15,12 @@ class qoutas extends Model
        'valor_contribuido',
        'data_pagamento',
        'nome_socio',
-       'id_socio'
+       'id_socio',
+       'status_pagamento'
     ];
+
+    public function socio()
+    {
+        return $this->belongsTo(Socio::class, 'id_socio', 'id');
+    }
 }

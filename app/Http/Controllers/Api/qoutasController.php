@@ -10,30 +10,40 @@ use Illuminate\support\Facades\Validator;
 
 class qoutasController extends Controller
 {
-        // metodo para listar todos elementos
-        public function index(){
+    // metodo para listar todos elementos
+    public function index(){
+        $qoutas = Qoutas::with('socio')->get();
+        if($qoutas->count()>0){
+            $formattedQoutas = $qoutas->map(function($qouta) {
+                return [
+                    'id' => $qouta->id,
+                    'socio_nome' => $qouta->nome_socio,
+                    'valor_contribuido' => number_format($qouta->valor_contribuido, 2, '.', ''),
+                    'data_pagamento' => $qouta->data_pagamento,
+                    'status_pagamento' => $qouta->status_pagamento,
+                    'created_at' => $qouta->created_at
+                ];
+            });
 
-            $qoutas = Qoutas::all();
-            if($qoutas->count()>0){
-                return response()->json([
-                   'status' => 200,
-                   'qoutas' => $qoutas
-                ], 200);
-            }else{
-                return response()->json([
-                    'status' => 404,
-                    'message' => "Sem Socios Registados"
-                 ], 404);
-            }
+            return response()->json([
+                'status' => 200,
+                'data' => $formattedQoutas
+            ], 200);
+        }else{
+            return response()->json([
+                'status' => 404,
+                'message' => "Sem Quotas Registadas"
+            ], 404);
         }
+    }
 
-        // metodo para criar reegisto
+    // metodo para criar registro
     public function store(Request $request){
         $validator = Validator::make($request->all(), [
-            'nome_socio',
-            'data_pagamento'  => 'required',
-            'id_socio' => 'required|max:30',
-            'valor_contribuido' => 'required',
+            'id_socio' => 'required|exists:socios,id',
+            'data_pagamento'  => 'required|date',
+            'valor_contribuido' => 'required|numeric',
+            'status_pagamento' => 'required|in:Pago,Pendente,Cancelado'
         ]);
 
         if($validator->fails()){
@@ -42,49 +52,68 @@ class qoutasController extends Controller
                 'errors' => $validator->messages()
             ], 422);
         }else{
-             $buscar_nome = Socio::find($request->id_socio);
-             $nome = $buscar_nome->nome_completo;
-             $qoutas = Qoutas::create([
-                'valor_contribuido' =>$request->valor_contribuido,
-                'data_pagamento' =>$request->data_pagamento,
-                'nome_socio'=> $nome,
+            $socio = Socio::find($request->id_socio);
+            if(!$socio) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => "Sócio não encontrado"
+                ], 404);
+            }
+
+            $qoutas = Qoutas::create([
+                'valor_contribuido' => $request->valor_contribuido,
+                'data_pagamento' => $request->data_pagamento,
+                'nome_socio' => $socio->nome_completo,
                 'id_socio' => $request->id_socio,
-             ]);
+                'status_pagamento' => $request->status_pagamento ?? 'Pago'
+            ]);
                        
-           
-             if($qoutas){
-                $socio = Socio::find($request->id_socio);
+            if($qoutas){
                 $aux = $socio->valor_quota_contribuido + $qoutas->valor_contribuido;
                 $socio->update(['valor_quota_contribuido' => $aux]);
                 $socio->save();
      
                 return response()->json([
-                   'status' => 200,
-                   'message' => "Socio criado com sucesso"
+                    'status' => 200,
+                    'message' => "Quota registrada com sucesso",
+                    'data' => [
+                        'id' => $qoutas->id,
+                        'socio_nome' => $qoutas->nome_socio,
+                        'valor_contribuido' => number_format($qoutas->valor_contribuido, 2, '.', ''),
+                        'data_pagamento' => $qoutas->data_pagamento,
+                        'status_pagamento' => $qoutas->status_pagamento,
+                        'created_at' => $qoutas->created_at
+                    ]
                 ], 200);  
-             }else{
+            }else{
                 return response()->json([
                     'status' => 500,
                     'message' => "Opps, algo correu mal"
-                 ], 500);  
-             }
+                ], 500);  
+            }
         }
     }
 
-    
     public function show($id){
         $qoutas = Qoutas::find($id);
 
         if($qoutas){
             return response()->json([
                 'status' => 200,
-                'qoutas' => $qoutas
-             ], 200); 
+                'data' => [
+                    'id' => $qoutas->id,
+                    'socio_nome' => $qoutas->nome_socio,
+                    'valor_contribuido' => number_format($qoutas->valor_contribuido, 2, '.', ''),
+                    'data_pagamento' => $qoutas->data_pagamento,
+                    'status_pagamento' => $qoutas->status_pagamento,
+                    'created_at' => $qoutas->created_at
+                ]
+            ], 200); 
         }else{
             return response()->json([
                 'status' => 404,
-                'message' => "Opps, socio nao encontrado!"
-             ], 404); 
+                'message' => "Quota não encontrada!"
+            ], 404); 
         }
     }
 
@@ -94,23 +123,29 @@ class qoutasController extends Controller
         if($qoutas){
             return response()->json([
                 'status' => 200,
-                'qoutas' => $qoutas
-             ], 200); 
+                'data' => [
+                    'id' => $qoutas->id,
+                    'socio_nome' => $qoutas->nome_socio,
+                    'valor_contribuido' => number_format($qoutas->valor_contribuido, 2, '.', ''),
+                    'data_pagamento' => $qoutas->data_pagamento,
+                    'status_pagamento' => $qoutas->status_pagamento,
+                    'created_at' => $qoutas->created_at
+                ]
+            ], 200); 
         }else{
             return response()->json([
                 'status' => 404,
-                'message' => "Opps, socio nao encontrado!"
-             ], 404); 
+                'message' => "Quota não encontrada!"
+            ], 404); 
         }
     }
 
-
     public function update(Request $request, int $id){
         $validator = Validator::make($request->all(), [
-            'nome_socio' => 'max:191',
-            'data_pagamento'  => 'required',
-            'id_socio' => 'required|max:30',
-            'valor_contribuido' => 'required',
+            'id_socio' => 'required|exists:socios,id',
+            'data_pagamento'  => 'required|date',
+            'valor_contribuido' => 'required|numeric',
+            'status_pagamento' => 'required|in:Pago,Pendente,Cancelado'
         ]);
 
         if($validator->fails()){
@@ -119,26 +154,42 @@ class qoutasController extends Controller
                 'errors' => $validator->messages()
             ], 422);
         }else{
-             $qoutas = qoutas::find($id);
-             $qoutas->update([
-                'valor_contribuido' =>$request->valor_contribuido,
-                'data_pagamento' =>$request->data_pagamento,
-                'nome_socio'=> $request->nome_socio,
-                'id_socio' => $request->id_socio,
-             ]);
+            $qoutas = Qoutas::find($id);
+            if($qoutas){
+                $socio = Socio::find($request->id_socio);
+                if(!$socio) {
+                    return response()->json([
+                        'status' => 404,
+                        'message' => "Sócio não encontrado"
+                    ], 404);
+                }
+
+                $qoutas->update([
+                    'valor_contribuido' => $request->valor_contribuido,
+                    'data_pagamento' => $request->data_pagamento,
+                    'nome_socio' => $socio->nome_completo,
+                    'id_socio' => $request->id_socio,
+                    'status_pagamento' => $request->status_pagamento
+                ]);
             
-            
-             if($qoutas){
                 return response()->json([
-                   'status' => 200,
-                   'message' => "Pagamento de qouta Actualizado com sucesso!"
+                    'status' => 200,
+                    'message' => "Quota atualizada com sucesso!",
+                    'data' => [
+                        'id' => $qoutas->id,
+                        'socio_nome' => $qoutas->nome_socio,
+                        'valor_contribuido' => number_format($qoutas->valor_contribuido, 2, '.', ''),
+                        'data_pagamento' => $qoutas->data_pagamento,
+                        'status_pagamento' => $qoutas->status_pagamento,
+                        'created_at' => $qoutas->created_at
+                    ]
                 ], 200);  
-             }else{
+            }else{
                 return response()->json([
                     'status' => 404,
-                    'message' => "Opps, Pagamento de qouta nao encontrado!"
-                 ], 500);  
-             }
+                    'message' => "Quota não encontrada!"
+                ], 404);  
+            }
         }
     }
 
@@ -148,14 +199,13 @@ class qoutasController extends Controller
            $qoutas->delete();
            return response()->json([
             'status' => 200,
-            'message' => "pagamento de qouta deletado com sucesso"
+            'message' => "Quota deletada com sucesso"
          ], 200); 
         } else{
             return response()->json([
                 'status' => 404,
-                'message' => "Opps, Registo nao encontrado!"
-             ], 500);
+                'message' => "Quota não encontrada!"
+             ], 404);
         }
     }
-
 }
